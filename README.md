@@ -1,6 +1,6 @@
 # phoenixchannels
 
-TODO: Write a description here
+Client of phoenixframework channel
 
 ## Installation
 
@@ -9,7 +9,7 @@ TODO: Write a description here
    ```yaml
    dependencies:
      phoenixchannels:
-       github: your-github-user/phoenixchannels
+       github: bit4bit/phoenixchannels.cr
    ```
 
 2. Run `shards install`
@@ -20,20 +20,9 @@ TODO: Write a description here
 require "phoenixchannels"
 ```
 
-TODO: Write usage instructions here
-
 ## Development
 
-TODO: Write development instructions here
-
-## Contributing
-
-1. Fork it (<https://github.com/your-github-user/phoenixchannels/fork>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
 
 ## Contributors
 
-- [your-name-here](https://github.com/your-github-user) - creator and maintainer
+- Jovany Leandro G.C(https://github.com/bit4bit) - creator and maintainer
