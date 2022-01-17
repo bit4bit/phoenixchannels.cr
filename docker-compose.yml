@@ -1,0 +1,17 @@
+version: '3.7'
+services:
+  elixir-spec.dev:
+    image: "elixir:1.13.1-alpine"
+    volumes:
+      - ./elixir_spec:/usr/src
+    working_dir: /usr/src
+    command: sh serve.sh
+
+  # usado para las pruebas de integracion
+  crystal-spec.dev:
+    image: crystallang/crystal:1.3.1-alpine
+    volumes:
+      - .:/usr/src
+    working_dir: /usr/src
+    depends_on:
+      - elixir-spec.dev
