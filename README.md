@@ -22,7 +22,9 @@ require "phoenixchannels"
 
 ## Development
 
+* make dev-up
 * make ci
+* make dev-down
 
 
 ## Contributors

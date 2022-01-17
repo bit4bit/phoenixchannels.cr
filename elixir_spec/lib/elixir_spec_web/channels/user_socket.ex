@@ -1,5 +1,6 @@
 defmodule ElixirSpecWeb.UserSocket do
   use Phoenix.Socket
+  require Logger
 
   # A Socket handler
   #
@@ -23,6 +24,7 @@ defmodule ElixirSpecWeb.UserSocket do
   # performing token verification on connect.
   @impl true
   def connect(_params, socket, _connect_info) do
+    Logger.info("detected new connection on socket")
     {:ok, socket}
   end
 
