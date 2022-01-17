@@ -22,6 +22,8 @@ require "phoenixchannels"
 
 ## Development
 
+* make ci
+
 
 ## Contributors
 
