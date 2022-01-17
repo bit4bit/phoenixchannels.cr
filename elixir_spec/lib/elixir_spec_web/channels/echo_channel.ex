@@ -3,9 +3,12 @@ defmodule ElixirSpecWeb.EchoChannel do
   echo server para pruebas de integracion
   """
   use ElixirSpecWeb, :channel
+  require Logger
 
   @impl true
   def join("echo:lobby", payload, socket) do
+    Logger.info("join to echo:lobby")
+
     if authorized?(payload) do
       {:ok, socket}
     else

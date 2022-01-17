@@ -9,7 +9,7 @@ import Config
 
 # Configures the endpoint
 config :elixir_spec, ElixirSpecWeb.Endpoint,
-  url: [host: "localhost"],
+  url: [host: "elixir-spec.dev"],
   render_errors: [view: ElixirSpecWeb.ErrorView, accepts: ~w(json), layout: false],
   pubsub_server: ElixirSpec.PubSub,
   live_view: [signing_salt: "axGaDVb7"]

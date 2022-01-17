@@ -1,9 +1,9 @@
 require "./spec_helper"
 
 describe Phoenixchannels do
-  # TODO: Write tests
-
-  it "works" do
-    false.should eq(true)
+  it "connect" do
+    socket = Phoenixchannels::Socket.new("ws://elixir-spec.dev:4000/socket")
+    socket.connect()
+    socket.abnormalClose("test")
   end
 end
