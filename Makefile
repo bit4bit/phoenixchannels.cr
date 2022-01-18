@@ -12,7 +12,7 @@ fmt:
 	crystal tool format spec-integration
 
 test:
-	crystal spec
+	crystal spec --error-trace
 
 
 dev-up:
@@ -25,7 +25,7 @@ elixir-spec: dev-up
 	docker-compose exec elixir-spec.dev sh
 
 test-integration: dev-up
-	docker-compose run --rm crystal-spec.dev crystal spec spec-integration
+	docker-compose run --rm -e LOG_LEVEL=debug crystal-spec.dev crystal spec --error-trace spec-integration
 
 ci: lint fmt test test-integration
 	echo 'done'
