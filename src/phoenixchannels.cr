@@ -14,8 +14,9 @@ module Phoenixchannels
   alias MessageRef = String
   alias MessageTopic = String
   alias MessageEvent = String
-  alias MessagePayload = Hash(String, String | Int32 ) | Hash(String, Int32) | Hash(String, String)
-
+  alias MessagePayload = String
+  alias AttachMessageCallback = Proc(String, Bool)
+  
   class Message(T)
     getter :join_ref
     getter :ref
@@ -23,7 +24,7 @@ module Phoenixchannels
     getter :event
     getter :payload
 
-    def initialize(@join_ref : MessageJoinRef?, @ref : MessageRef, @topic : MessageTopic, @event : MessageEvent, @payload : T)
+    def initialize(@join_ref : MessageJoinRef?, @ref : MessageRef, @topic : MessageTopic, @event : MessageEvent, @payload : T?)
     end
 
     def hash
@@ -51,7 +52,7 @@ module Phoenixchannels
       ].to_json
     end
 
-    def self.decode(data : String, &decoder_payload : String -> Payload) : Message(Payload) forall Payload
+    def self.decode(data : String, totype : T.class) : Message(T) forall T
 
       result = JSON.parse(data)
       join_ref = nil
@@ -59,12 +60,22 @@ module Phoenixchannels
         join_ref = result[0].as_s
       end
 
-      Message(Payload).new(
+      payload : T? = nil
+
+      # nil payload when fail decode
+      begin
+        payload_string = result[4].to_json()
+        payload = T.from_json(payload_string)
+      rescue e
+        Log.error { e.inspect_with_backtrace }
+      end
+
+      Message(T).new(
         join_ref: join_ref,
         ref: result[1].as_s,
         topic: result[2].as_s,
         event: result[3].as_s,
-        payload: decoder_payload.call(result[4].to_json))
+        payload: payload)
     end
   end
 
@@ -72,7 +83,7 @@ module Phoenixchannels
     @ws : HTTP::WebSocket
     @serializer = Serializer
     @heartbeat_timeout = 1
-    @on_messages = Array(Proc(String, Nil)).new
+    @on_messages = Array(AttachMessageCallback).new
     @ref = 1
     
     class Error < Exception
@@ -92,8 +103,16 @@ module Phoenixchannels
       @ws.on_message do |raw|
         Log.debug { "websocket message: #{raw}" }
 
+        cb_to_removes = [] of AttachMessageCallback
         @on_messages.each do |on_message|
-          on_message.call(raw)
+          done = on_message.call(raw)
+          if done
+            cb_to_removes << on_message
+          end
+        end
+
+        cb_to_removes.each do |cb|
+          @on_messages.delete(cb)
         end
       end
     end
@@ -134,10 +153,7 @@ module Phoenixchannels
 
     private def install_heartbeat()
       spawn do
-        ch = stream_messages do |payload|
-          payload
-        end
-
+        ch = stream_messages(Hash(String, String | Hash(String, String))) { false }
         ref = send_heartbeat()
 
         loop do
@@ -154,20 +170,25 @@ module Phoenixchannels
       end
     end
 
-    private def attach_on_messages(&block : String ->)
+    private def attach_on_messages(&block : AttachMessageCallback)
       @on_messages << block
     end
 
-    def stream_messages(&decoder_payload : String -> Payload) : Channel(Message(Payload)) forall Payload
-      ch = Channel(Message(Payload)).new(1)
+    def stream_messages(decode_type : T.class, &filter: Message(T) -> Bool) : Channel(Message(T)) forall T
+      ch = Channel(Message(T)).new(1)
 
       attach_on_messages do |raw|
         if @ws.closed?
-          next
+          ch.close
+          next true
         end
 
-        msg = @serializer.decode(raw, &decoder_payload)
-        ch.send msg
+        msg = @serializer.decode(raw, decode_type)
+        if !filter.call(msg)
+          ch.send msg
+        end
+
+        next false
       end
 
       return ch

@@ -16,11 +16,16 @@ describe Phoenixchannels do
     end
 
     it "decodes"do
-      msg = Phoenixchannels::Serializer.decode("[\"0\",\"1\",\"t\",\"e\",{\"foo\":1}]") do |payload_as_json|
-        Hash(String,Int32).from_json(payload_as_json)
-      end
-        
+      msg = Phoenixchannels::Serializer.decode("[\"0\",\"1\",\"t\",\"e\",{\"foo\":1}]", Hash(String, Int32))
+      
       msg.should eq(example_msg)
+      msg.payload.try &.fetch("foo", nil).should eq(1)
+    end
+
+    it "decodes fail payload"do
+      msg = Phoenixchannels::Serializer.decode("[\"0\",\"1\",\"t\",\"e\",{\"foo\":1}]", Hash(String, String))
+      
+      msg.payload.should eq(nil)
     end
   end
 end
