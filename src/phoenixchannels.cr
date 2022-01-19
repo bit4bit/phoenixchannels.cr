@@ -16,7 +16,7 @@ module Phoenixchannels
   alias MessageEvent = String
   alias MessagePayload = String
   alias AttachMessageCallback = Proc(String, Bool)
-  
+
   class Message(T)
     getter :join_ref
     getter :ref
@@ -24,7 +24,7 @@ module Phoenixchannels
     getter :event
     getter :payload
 
-    def initialize(@join_ref : MessageJoinRef?, @ref : MessageRef, @topic : MessageTopic, @event : MessageEvent, @payload : T?)
+    def initialize(@join_ref : MessageJoinRef?, @ref : MessageRef?, @topic : MessageTopic, @event : MessageEvent, @payload : T?)
     end
 
     def hash
@@ -59,6 +59,10 @@ module Phoenixchannels
       if result[0].as_s?
         join_ref = result[0].as_s
       end
+      ref = nil
+      if result[1].as_s?
+        ref = result[1].as_s
+      end
 
       payload : T? = nil
 
@@ -72,10 +76,69 @@ module Phoenixchannels
 
       Message(T).new(
         join_ref: join_ref,
-        ref: result[1].as_s,
+        ref: ref,
         topic: result[2].as_s,
         event: result[3].as_s,
         payload: payload)
+    end
+  end
+
+  class PhoenixChannelError < Exception
+  end
+
+  class PhoenixChannel(T)
+    @join_ref : String
+
+    def initialize(@socket : Socket, @topic : String, @payload : T)
+      @join_ref = @socket.make_ref()
+      join()
+    end
+
+    private def join()
+      push = Message(T).new(
+        join_ref: nil,
+        ref: @join_ref,
+        topic: @topic,
+        event: "phx_join",
+        payload: @payload)
+
+      msg = send_and_receive(push)
+      status = msg.payload.try &.fetch("status", JSON::Any.new("")).try &.as_s
+      if status != "ok"
+        raise PhoenixChannelError.new("fail to join status: #{msg.payload.try &.fetch("response", "unknown")}")
+      end
+    end
+    
+    private def send_and_receive(push : Message(T)) : Message(Hash(String, JSON::Any?))
+      # install stream listener
+      stream = @socket.stream_messages_with_filter(Hash(String, JSON::Any?)) do |recv|
+        if push.ref ==  recv.ref && push.topic == recv.topic && recv.event == "phx_reply"
+          next true
+        end
+
+        next false
+      end
+
+      # push message
+      @socket.send(push)
+
+      # get response
+      select
+      when msg=stream.receive
+        return msg
+      when timeout 5.seconds
+        raise PhoenixChannelError.new("timeout channel join")
+      end
+    end
+    
+    def stream_messages(decode_type : T.class) : Channel(Message(T)) forall T
+      @socket.stream_messages_with_filter(decode_type) do |recv|
+        if recv.join_ref == @join_ref
+          next true
+        end
+
+        next false
+      end
     end
   end
 
@@ -121,6 +184,10 @@ module Phoenixchannels
 
     end
 
+    def channel(topic : String, payload : T) forall T
+      PhoenixChannel(T).new(self, topic, payload)
+    end
+    
     def abnormalClose(reason : String)
       # socket.js#486
       @ws.close(HTTP::WebSocket::CloseCode::NormalClosure, reason)
@@ -140,26 +207,28 @@ module Phoenixchannels
       ref
     end
 
-    private def send(msg : Message)
+    def send(msg : Message)
       @ws.send(@serializer.encode(msg))
     rescue ex : Socket::Error
       raise Error.new(ex.message)
     end
 
-    private def make_ref()
+    def make_ref()
       @ref += 1
       @ref.to_s
     end
 
     private def install_heartbeat()
       spawn do
-        ch = stream_messages(Hash(String, String | Hash(String, String))) { false }
+        ch = stream_messages(Hash(String, String | Hash(String, String)))
         ref = send_heartbeat()
 
         loop do
           select
           when msg = ch.receive
             if msg.ref == ref
+              sleep @heartbeat_timeout.seconds
+
               Log.debug { "sending heartbeat" }
               ref = send_heartbeat()
             end
@@ -174,7 +243,31 @@ module Phoenixchannels
       @on_messages << block
     end
 
-    def stream_messages(decode_type : T.class, &filter: Message(T) -> Bool) : Channel(Message(T)) forall T
+    def stream_messages_with_filter(decode_type : T.class, &filter : Message(T) -> Bool) : Channel(Message(T)) forall T
+      ch = Channel(Message(T)).new()
+      
+      stream = stream_messages(decode_type)
+      spawn do
+        loop do
+          select
+          when msg=stream.receive?
+            break if msg.nil?
+
+            if filter.call(msg)
+              ch.send msg
+            end
+          end
+        end
+
+        ch.close
+      ensure
+        ch.close
+      end
+
+      ch
+    end
+    
+    def stream_messages(decode_type : T.class) : Channel(Message(T)) forall T
       ch = Channel(Message(T)).new(1)
 
       attach_on_messages do |raw|
@@ -184,7 +277,7 @@ module Phoenixchannels
         end
 
         msg = @serializer.decode(raw, decode_type)
-        if !filter.call(msg)
+        if !msg.payload.nil?
           ch.send msg
         end
 
