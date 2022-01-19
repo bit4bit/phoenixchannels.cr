@@ -7,8 +7,9 @@ defmodule ElixirSpecWeb.EchoChannel do
 
   @impl true
   def join("echo:lobby", payload, socket) do
-    Logger.info("join to echo:lobby")
-
+    Logger.info("join to echo:lobby with payload: #{inspect(payload)}")
+    schedule()
+    
     if authorized?(payload) do
       {:ok, socket}
     else
@@ -28,7 +29,18 @@ defmodule ElixirSpecWeb.EchoChannel do
     {:noreply, socket}
   end
 
+  def handle_info(:heartbeat, socket) do
+    schedule()
+
+    push(socket, "heartbeat", %{"name" => "heartbeat"})
+    {:noreply, socket}
+  end
+
   defp authorized?(_payload) do
     true
+  end
+
+  defp schedule do
+    Process.send_after(self(), :heartbeat, 100)
   end
 end
