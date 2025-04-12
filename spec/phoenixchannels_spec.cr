@@ -24,7 +24,7 @@ describe Phoenixchannels do
     it "decodes fail payload" do
       msg = Phoenixchannels::Serializer.decode("[\"0\",\"1\",\"t\",\"e\",{\"foo\":1}]", Hash(String, String))
 
-      msg.payload.should eq(nil)
+      msg.payload.should eq(Hash(String, String).new)
     end
   end
 end

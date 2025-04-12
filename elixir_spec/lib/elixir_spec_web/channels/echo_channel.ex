@@ -20,7 +20,7 @@ defmodule ElixirSpecWeb.EchoChannel do
 
   @impl true
   def handle_in("echo", payload, socket) do
-    {:reply, payload, socket}
+    {:reply, {:ok, payload}, socket}
   end
 
   @impl true
@@ -29,6 +29,7 @@ defmodule ElixirSpecWeb.EchoChannel do
     {:noreply, socket}
   end
 
+  @impl true
   def handle_info(:heartbeat, socket) do
     schedule()
 
