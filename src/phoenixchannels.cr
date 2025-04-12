@@ -1,5 +1,6 @@
 require "http/web_socket"
 require "uri"
+require "uri/params"
 require "socket"
 require "json"
 require "log"
@@ -173,9 +174,11 @@ module Phoenixchannels
     class Error < Exception
     end
 
-    def initialize(address : String)
+    def initialize(address : String, params = Hash(String, Array(String)).new)
       # socket.js#144
-      uri = URI.parse("#{address}/websocket?vsn=#{DEFAULT_VSN}")
+      params["vsn"] = [DEFAULT_VSN]
+      uri = URI.parse("#{address}/websocket")
+      uri.query_params = URI::Params.new(params)
       @ws = HTTP::WebSocket.new(uri)
 
       spawn do
