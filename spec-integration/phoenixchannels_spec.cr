@@ -19,6 +19,21 @@ describe Phoenixchannels do
     socket.abnormal_close("test")
   end
 
+  it "connect channel and install heartbeat" do
+    socket = Phoenixchannels::Socket.new("ws://elixir-spec.dev:4000/socket")
+    socket.install_heartbeat(1.second)
+    stream = socket.stream_messages(Hash(String, JSON::Any?))
+    select
+    when msg = stream.receive
+      msg.topic.should eq("phoenix")
+      msg.event.should eq("phx_reply")
+    when timeout(3.seconds)
+      fail "expected message heartbeat"
+    end
+
+    socket.abnormal_close("test")
+  end
+
   it "connect channel and push async message" do
     socket = Phoenixchannels::Socket.new("ws://elixir-spec.dev:4000/socket")
     channel = socket.channel("echo:lobby", "super payload")
