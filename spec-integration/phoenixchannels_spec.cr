@@ -14,7 +14,7 @@ describe Phoenixchannels do
     when timeout(3.seconds)
       fail "expected messaget with topic phoenix"
     end
-    socket.abnormalClose("test")
+    socket.abnormal_close("test")
   end
 
   it "connect channel not raises exception" do
@@ -29,6 +29,6 @@ describe Phoenixchannels do
       fail "expected message heartbeat"
     end
 
-    socket.abnormalClose("test")
+    socket.abnormal_close("test")
   end
 end

@@ -22,10 +22,10 @@ require "phoenixchannels"
 
 ## Development
 
-* make dev-up
-* make ci
-* make dev-down
-
+* `fossil clone https://chiselapp.com/user/bit4bit/repository/phoenixchannels`
+* `make dev-up`
+* `make ci`
+* `make dev-down`
 
 ## Contributors
 

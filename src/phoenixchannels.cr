@@ -5,11 +5,11 @@ require "json"
 require "log"
 
 module Phoenixchannels
-  VERSION = "0.1.0"
+  VERSION     = "0.1.0"
   DEFAULT_VSN = "2.0.0"
 
   Log = ::Log.for("phoenix-channels")
-  
+
   alias MessageJoinRef = String | Nil
   alias MessageRef = String
   alias MessageTopic = String
@@ -29,10 +29,10 @@ module Phoenixchannels
 
     def hash
       {join_ref: @join_ref,
-       ref: @ref,
-       topic: @topic,
-       event: @event,
-       payload: @payload}.hash
+       ref:      @ref,
+       topic:    @topic,
+       event:    @event,
+       payload:  @payload}.hash
     end
 
     def ==(other)
@@ -41,19 +41,17 @@ module Phoenixchannels
   end
 
   class Serializer
-
     def self.encode(msg : Message)
       [
         msg.join_ref,
         msg.ref,
         msg.topic,
         msg.event,
-        msg.payload
+        msg.payload,
       ].to_json
     end
 
     def self.decode(data : String, totype : T.class) : Message(T) forall T
-
       result = JSON.parse(data)
       join_ref = nil
       if result[0].as_s?
@@ -68,7 +66,7 @@ module Phoenixchannels
 
       # nil payload when fail decode
       begin
-        payload_string = result[4].to_json()
+        payload_string = result[4].to_json
         payload = T.from_json(payload_string)
       rescue e
         Log.error { e.inspect_with_backtrace }
@@ -90,11 +88,11 @@ module Phoenixchannels
     @join_ref : String
 
     def initialize(@socket : Socket, @topic : String, @payload : T)
-      @join_ref = @socket.make_ref()
+      @join_ref = @socket.make_ref
       join()
     end
 
-    private def join()
+    private def join
       push = Message(T).new(
         join_ref: nil,
         ref: @join_ref,
@@ -108,15 +106,15 @@ module Phoenixchannels
         raise PhoenixChannelError.new("fail to join status: #{msg.payload.try &.fetch("response", "unknown")}")
       end
     end
-    
+
     private def send_and_receive(push : Message(T)) : Message(Hash(String, JSON::Any?))
       # install stream listener
       stream = @socket.stream_messages_with_filter(Hash(String, JSON::Any?)) do |recv|
-        if push.ref ==  recv.ref && push.topic == recv.topic && recv.event == "phx_reply"
+        if push.ref == recv.ref && push.topic == recv.topic && recv.event == "phx_reply"
           next true
         end
 
-        next false
+        false
       end
 
       # push message
@@ -124,20 +122,20 @@ module Phoenixchannels
 
       # get response
       select
-      when msg=stream.receive
+      when msg = stream.receive
         return msg
       when timeout 5.seconds
         raise PhoenixChannelError.new("timeout channel join")
       end
     end
-    
+
     def stream_messages(decode_type : T.class) : Channel(Message(T)) forall T
       @socket.stream_messages_with_filter(decode_type) do |recv|
         if recv.join_ref == @join_ref
           next true
         end
 
-        next false
+        false
       end
     end
   end
@@ -148,7 +146,7 @@ module Phoenixchannels
     @heartbeat_timeout = 1
     @on_messages = Array(AttachMessageCallback).new
     @ref = 1
-    
+
     class Error < Exception
     end
 
@@ -174,35 +172,34 @@ module Phoenixchannels
           end
         end
 
-        cb_to_removes.each do |cb|
-          @on_messages.delete(cb)
+        cb_to_removes.each do |callback|
+          @on_messages.delete(callback)
         end
       end
     end
 
     def run
-
     end
 
     def channel(topic : String, payload : T) forall T
       PhoenixChannel(T).new(self, topic, payload)
     end
-    
-    def abnormalClose(reason : String)
+
+    def abnormal_close(reason : String)
       # socket.js#486
       @ws.close(HTTP::WebSocket::CloseCode::NormalClosure, reason)
     end
 
-    private def send_heartbeat()
+    private def send_heartbeat
       return if @ws.closed?
 
       ref = make_ref()
 
       send(Message.new(topic: "phoenix",
-                       event: "heartbeat",
-                       payload: {} of String => String,
-                                      join_ref: nil,
-                                      ref: ref))
+        event: "heartbeat",
+        payload: {} of String => String,
+        join_ref: nil,
+        ref: ref))
 
       ref
     end
@@ -213,12 +210,12 @@ module Phoenixchannels
       raise Error.new(ex.message)
     end
 
-    def make_ref()
+    def make_ref
       @ref += 1
       @ref.to_s
     end
 
-    private def install_heartbeat()
+    private def install_heartbeat
       spawn do
         ch = stream_messages(Hash(String, String | Hash(String, String)))
         ref = send_heartbeat()
@@ -244,13 +241,13 @@ module Phoenixchannels
     end
 
     def stream_messages_with_filter(decode_type : T.class, &filter : Message(T) -> Bool) : Channel(Message(T)) forall T
-      ch = Channel(Message(T)).new()
-      
+      ch = Channel(Message(T)).new
+
       stream = stream_messages(decode_type)
       spawn do
         loop do
           select
-          when msg=stream.receive?
+          when msg = stream.receive?
             break if msg.nil?
 
             if filter.call(msg)
@@ -266,7 +263,7 @@ module Phoenixchannels
 
       ch
     end
-    
+
     def stream_messages(decode_type : T.class) : Channel(Message(T)) forall T
       ch = Channel(Message(T)).new(1)
 
@@ -281,10 +278,10 @@ module Phoenixchannels
           ch.send msg
         end
 
-        next false
+        false
       end
 
-      return ch
+      ch
     end
   end
 end
