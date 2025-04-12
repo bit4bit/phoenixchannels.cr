@@ -167,7 +167,6 @@ module Phoenixchannels
   class Socket
     @ws : HTTP::WebSocket
     @serializer = Serializer
-    @heartbeat_timeout = 1
     @on_messages = Array(AttachMessageCallback).new
     @ref = 1
 
@@ -240,7 +239,7 @@ module Phoenixchannels
       @ref.to_s
     end
 
-    def install_heartbeat
+    def install_heartbeat(hearbeat_timeout : Time::Span = 1.second)
       spawn do
         ch = stream_messages(Hash(String, String | Hash(String, String)))
         ref = send_heartbeat()
