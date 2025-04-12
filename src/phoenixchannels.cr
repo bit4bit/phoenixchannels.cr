@@ -248,11 +248,11 @@ module Phoenixchannels
           select
           when msg = ch.receive
             if msg.ref == ref
-              sleep @heartbeat_timeout.seconds
+              sleep heartbeat_timeout.seconds
 
               ref = send_heartbeat()
             end
-          when timeout(@heartbeat_timeout.seconds)
+          when timeout(heartbeat_timeout.seconds)
             ref = send_heartbeat()
           end
         end
